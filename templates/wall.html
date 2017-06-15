@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang='en'>
+  <head>
+    <title>CodingDojo Wall</title>
+    <meta charset='utf-8' />
+    <link rel='stylesheet' href="{{ url_for('static', filename='wall_style.css') }}" />
+  </head>
+  <body>
+    <div id='wrapper'>
+      <header>
+        <h1>CodingDojo Wall</h1>
+        <p>Welcome {{ first_name }}</p>
+        <a href="/logoff">log off</a>
+      </header>
+      <form action="/post_message" method="POST">
+      <label for="message_box">Post a message</label>
+      <textarea name="message_box" id="message_box" cols="100" rows="4"></textarea>
+      <button type="submit" name="post_message_button">Post a message</button>
+      </form>
+      <div id="message_list">
+        <!--Loop through messages, which go here - most recent at the top
+            Include delete option for messages if created within the last 30 minutes
+            Loop through comments, which go after each message - oldest at the top-->
+        {% for each in all_messages %}
+          <h4>{{ each['first_name'] }} {{ each['last_name'] }} -
+            {{ each['created_at']}}</h4>
+          <p>{{ each['message'] }}</p>
+        {% endfor %}
+      </div>
+    </div>
+  </body>
+</html>
