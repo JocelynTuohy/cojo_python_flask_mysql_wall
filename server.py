@@ -1,5 +1,4 @@
 import re
-import time
 from datetime import datetime
 from flask import Flask, request, redirect, render_template, session, flash
 from mysqlconnection import MySQLConnection
@@ -31,6 +30,8 @@ def check():
         if not request.form['reg_last_name'].isalpha():
             flash('Last name may only include alphabetic characters.', 'reg')
         # email: valid format, was submitted
+        # CHECK WHETHER EMAIL ALREADY EXISTS IN DATABASE WHEN YOU HAVE MORE TIME
+        # ACCOUNT FOR UPPER/LOWERCASE COMPARISON
         if not EMAIL_REGEX.match(request.form['reg_email']):
             flash('Please provide a valid email.', 'reg')
         # password: minimum 8 characters, submitted, NOT "password"
@@ -46,16 +47,13 @@ def check():
             query = ("INSERT INTO users (first_name, last_name, email, " +
                      "password, created_at, updated_at) VALUES " +
                      "(:first_name, :last_name, :email, :password, NOW(), NOW())")
-            # print query
             data = {
                 'first_name': request.form['reg_first_name'],
                 'last_name': request.form['reg_last_name'],
                 'email': request.form['reg_email'],
                 'password': bcrypt.generate_password_hash(request.form['reg_password'])
                 }
-            # print data
             session['user_id'] = mysql.query_db(query, data)
-            # print session['user_id']
             session['user_first_name'] = request.form['reg_first_name']
             return redirect('/wall')
         # if logging in:
@@ -70,7 +68,6 @@ def check():
         if bcrypt.check_password_hash(grab_hash[0]['password'],
                                       request.form['log_password']):
             session['user_id'] = grab_hash[0]['id']
-            # print session['user_id']
             session['user_first_name'] = grab_hash[0]['first_name']
             return redirect('/wall')
         else:
@@ -80,29 +77,41 @@ def check():
 @app.route('/wall')
 def wall():
     # print 'you know nothing john snow'
-    # grab messages
+    # LOGIC TO GRAB ALL MESSAGES:
     query = (
-        'SELECT * FROM messages JOIN users ON messages.user_id = ' +
-        'users.id ORDER BY messages.created_at DESC'
+        'SELECT messages.id, messages.user_id, messages.created_at, ' +
+        'messages.message, users.first_name, users.last_name, ' +
+        'DATE_FORMAT(messages.created_at, "%M %D %Y") AS display_date FROM ' +
+        'messages JOIN users ON messages.user_id = users.id ORDER BY ' +
+        'messages.created_at DESC'
     )
     all_messages = mysql.query_db(query)
     # print all_messages
+    # LOGIC TO GRAB ALL COMMENTS:
+    query2 = (
+        'SELECT comments.id, comments.user_id, comments.created_at, ' +
+        'comments.comment, comments.message_id, users.first_name, ' +
+        'users.last_name, DATE_FORMAT(comments.created_at, "%b %D %Y") AS ' +
+        'cdisplay_date FROM comments JOIN users ON comments.user_id = ' +
+        'users.id ORDER BY comments.created_at ASC'
+    )
+    all_comments = mysql.query_db(query2)
+    # LOGIC FOR GRABBING THINGS FROM SESSION:
+    first_name = session['user_first_name']
+    suser_id = session['user_id']
+    # LOGIC FOR CHECKING WHETHER DELETE BUTTON SHOULD SHOW:
     # 1800 seconds in a half hour
-    # for each in all_messages:
-    #     time_since_creation = (
-    #         time.mktime(datetime.strptime(datetime.utcnow(),
-    #                                       "%d/%m/%Y %H:%M:%S").timetuple())
-    #     )
-    #     print each['created_at']
-    #     print datetime.utcnow()
-    #     # print time_since_creation.total_seconds()
-    #     if time_since_creation < 1800:
-    #         deletable = True
-    #     else:
-    #         deletable = False
-        # print deletable (add deletable=deletable once you figure out time logic)
+    for each in all_messages:
+        deletable = False
+        time_since_creation = datetime.utcnow() - each['created_at']
+        if time_since_creation.total_seconds() < 1800:
+            deletable = True
+        else:
+            deletable = False
+        each['deletable'] = deletable
     return render_template(
-        'wall.html', all_messages=all_messages
+        'wall.html', all_messages=all_messages,
+        first_name=first_name, suser_id=suser_id, all_comments=all_comments
         )
 
 @app.route('/logoff')
@@ -112,8 +121,6 @@ def logoff():
 
 @app.route('/post_message', methods=['POST'])
 def post_messsage():
-    # post this message for this user's wall
-    print "It's a nice day for a white wedding"
     query = (
         'INSERT INTO messages (user_id, message, created_at, updated_at)' +
         'VALUES (:user_id, :message, :message_time, :message_time)'
@@ -121,14 +128,54 @@ def post_messsage():
     data = {
         'user_id': session['user_id'],
         'message': request.form['message_box'],
-        'message_time': datetime.datetime.utcnow()
+        'message_time': datetime.utcnow()
     }
     mysql.query_db(query, data)
     return redirect('/wall')
 
-@app.route('/post_comment')
+@app.route('/post_comment', methods=['POST'])
 def post_comment():
-    # post this comment on this message
+    # print "Winter is coming"
+    query = (
+        'INSERT INTO comments(user_id, comment, message_id, created_at, ' +
+        'updated_at) VALUES (:user_id, :comment, :message_id, :comment_time, ' +
+        ':comment_time)'
+    )
+    data = {
+        'user_id': session['user_id'],
+        'comment': request.form['comment_box'],
+        'message_id': request.form['post_comment_button'],
+        'comment_time': datetime.utcnow()
+    }
+    mysql.query_db(query, data)
+    return redirect('/wall')
+
+@app.route('/delete_message', methods=['POST'])
+def delete_message():
+    # flash if not (add html to wall for this)
+    query = (
+        'SELECT messages.created_at FROM messages WHERE messages.id = ' +
+        ':message_id LIMIT 1'
+    )
+    data = {
+        'message_id': request.form['delete_message_button']
+    }
+    check_message_time = mysql.query_db(query, data)
+    # print check_message_time
+    time_since_creation = (
+        datetime.utcnow() - check_message_time[0]['created_at']
+    )
+
+    if time_since_creation.total_seconds() < 1800:
+        query2 = (
+            'DELETE FROM messages WHERE messages.id = :message_id'
+        )
+        data2 = {
+            'message_id': request.form['delete_message_button']
+        }
+        mysql.query_db(query2, data2)
+    else:
+        flash('Message may no longer be deleted after 30 minutes.', 'del')
     return redirect('/wall')
 
 app.run(debug=True)

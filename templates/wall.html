@@ -9,23 +9,49 @@
     <div id='wrapper'>
       <header>
         <h1>CodingDojo Wall</h1>
-        <p>Welcome {{ first_name }}</p>
-        <a href="/logoff">log off</a>
+        <div id="headright">
+          <p>Welcome {{ first_name }}</p>
+          <a href="/logoff">log off</a>
+        </div>
       </header>
       <form action="/post_message" method="POST">
       <label for="message_box">Post a message</label>
       <textarea name="message_box" id="message_box" cols="100" rows="4"></textarea>
       <button type="submit" name="post_message_button">Post a message</button>
       </form>
-      <div id="message_list">
-        <!--Loop through messages, which go here - most recent at the top
-            Include delete option for messages if created within the last 30 minutes
-            Loop through comments, which go after each message - oldest at the top-->
-        {% for each in all_messages %}
-          <h4>{{ each['first_name'] }} {{ each['last_name'] }} -
-            {{ each['created_at']}}</h4>
-          <p>{{ each['message'] }}</p>
-        {% endfor %}
+      <div>
+          {% for each in all_messages %}
+            <h4>{{ each['first_name'] }} {{ each['last_name'] }} -
+              {{ each['display_date'] }}</h4>
+              <form action="/delete_message" method="POST">
+                <p>{{ each['message'] }}
+                  {% with messages = get_flashed_messages(category_filter=['del']) %}
+                    {% if messages %}
+                      {% for message in messages %}
+                        <p>{{message}}</p>
+                      {% endfor %}
+                    {% endif %}
+                  {% endwith %}
+                {% if each['user_id'] == suser_id and each['deletable'] %}
+                  <button type="submit" name="delete_message_button" value={{ each['id'] }}>Delete
+                  this message</button></p>
+                {% else %}</p>
+                {% endif %}
+              </form>
+              {% for couch in all_comments %}
+                {% if couch['message_id'] == each['id'] %}
+                <h5>{{ couch['first_name'] }} {{ couch['last_name'] }} - 
+                  {{ couch['cdisplay_date'] }}</h5>
+                  <p>{{ couch['comment'] }}</p>
+                {% endif %}
+              {% endfor %}
+              <form action="/post_comment" method="POST" class="comment">
+                <label for="comment"+{{ each['id']|string }}>Post a comment</label>
+                <textarea name="comment_box" id="comment_box{{ each['id']|string}}" cols="90" rows="3"></textarea>
+                <button type="submit" name="post_comment_button" value={{each['id']}}>Post a comment</button>
+              </form>
+          {% endfor %}
+        </form>
       </div>
     </div>
   </body>

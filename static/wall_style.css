@@ -5,11 +5,24 @@
   display: inline-block;
   vertical-align: top;
 }
-form{
-  display: inline-block;
+.index{
   width: 290px;
+  display: inline-block;
   vertical-align: top;
 }
-form *{
+.index *{
   display: block;
+}
+form{
+  display: block;
+}
+h5, h5+p, .comment{
+  margin-left: 25px;
+}
+header *{
+  display: inline-block;
+}
+#headright{
+  position: relative;
+  left: 330px;
 }

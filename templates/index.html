@@ -7,7 +7,7 @@
   </head>
   <body>
     <div id='wrapper'>
-      <form action="/check" method="POST">
+      <form action="/check" method="POST" class="index">
         <label for="reg_first_name">First Name:</label>
         <input type="text" id="reg_first_name" name="reg_first_name">
         <label for="reg_last_name">Last Name:</label>
@@ -27,7 +27,7 @@
           {% endif %}
         {% endwith %}
       </form>
-      <form action="/check" method="POST">
+      <form action="/check" method="POST" class="index">
         <label for="log_email">Email:</label>
         <input type="text" id="log_email" name="log_email">
         <label for="log_password">Password:</label>
