@@ -168,12 +168,19 @@ def delete_message():
 
     if time_since_creation.total_seconds() < 1800:
         query2 = (
-            'DELETE FROM messages WHERE messages.id = :message_id'
+            'DELETE FROM comments WHERE comments.message_id = :message_id'
         )
         data2 = {
             'message_id': request.form['delete_message_button']
         }
         mysql.query_db(query2, data2)
+        query3 = (
+            'DELETE FROM messages WHERE messages.id = :message_id'
+        )
+        data3 = {
+            'message_id': request.form['delete_message_button']
+        }
+        mysql.query_db(query3, data3)
     else:
         flash('Message may no longer be deleted after 30 minutes.', 'del')
     return redirect('/wall')
