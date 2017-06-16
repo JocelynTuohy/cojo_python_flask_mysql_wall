@@ -30,8 +30,15 @@ def check():
         if not request.form['reg_last_name'].isalpha():
             flash('Last name may only include alphabetic characters.', 'reg')
         # email: valid format, was submitted
-        # CHECK WHETHER EMAIL ALREADY EXISTS IN DATABASE WHEN YOU HAVE MORE TIME
-        # ACCOUNT FOR UPPER/LOWERCASE COMPARISON
+        email_query = (
+            'SELECT COUNT(id) AS count FROM users WHERE users.email = :email_field LIMIT 1'
+        )
+        email_data = {
+            'email_field': request.form['reg_email'].lower()
+        }
+        email_count = mysql.query_db(email_query, email_data)
+        if int(email_count[0]['count']) > 0:
+            flash('An account already exists with that email address.', 'reg')
         if not EMAIL_REGEX.match(request.form['reg_email']):
             flash('Please provide a valid email.', 'reg')
         # password: minimum 8 characters, submitted, NOT "password"
@@ -50,7 +57,7 @@ def check():
             data = {
                 'first_name': request.form['reg_first_name'],
                 'last_name': request.form['reg_last_name'],
-                'email': request.form['reg_email'],
+                'email': request.form['reg_email'].lower(),
                 'password': bcrypt.generate_password_hash(request.form['reg_password'])
                 }
             session['user_id'] = mysql.query_db(query, data)
@@ -62,15 +69,22 @@ def check():
         query = ('SELECT * FROM users WHERE users.email = ' +
                  ':log_email LIMIT 1')
         data = {
-            'log_email' : request.form['log_email'],
+            'log_email' : request.form['log_email'].lower()
         }
+        print request.form['log_email'].lower()
         grab_hash = mysql.query_db(query, data)
-        if bcrypt.check_password_hash(grab_hash[0]['password'],
-                                      request.form['log_password']):
+        print grab_hash
+        if (
+                grab_hash and
+                bcrypt.check_password_hash(grab_hash[0]['password'],
+                                           request.form['log_password'])
+        ):
+            print 'ok'
             session['user_id'] = grab_hash[0]['id']
             session['user_first_name'] = grab_hash[0]['first_name']
             return redirect('/wall')
         else:
+            print 'what?'
             flash('Invalid login attempt.', 'log')
     return redirect('/')
 
